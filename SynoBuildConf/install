@@ -1,0 +1,110 @@
+#!/bin/bash
+#
+# MIT License
+#
+# Copyright (c) 2018 Ingo Theiss <ingo.theiss@i-matrixx.de>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+# Source spk packing functions
+. /pkgscripts/include/pkg_util.sh
+
+# PKG_DIR is a working directory
+PKG_DIR="/tmp/_spk.tmp"
+# Download cache directory
+DOWNLOAD_CACHE_DIR="/tmp/_cache.tmp"
+# Grafana download URL
+DOWNLOAD_URL="https://dl.influxdata.com/influxdb/releases/influxdb-1.7.0_linux_amd64.tar.gz"
+
+#
+# The package.tgz is a compressed file containing all the files required by the applications.
+# For example:
+#     - executable files
+#     - libraries
+#     - UI files
+#     - configuration files
+#
+create_package_tgz() {
+    local inner_tarball_dir=/tmp/_inner_tarball
+
+    # Clear directory
+    rm -rf ${inner_tarball_dir} && mkdir ${inner_tarball_dir}
+
+    # Download Grafana release tarball
+    if [ ! -f ${DOWNLOAD_CACHE_DIR}/${DOWNLOAD_URL##*/} ]
+    then
+        wget --no-check-certificate --no-verbose ${DOWNLOAD_URL} -P ${DOWNLOAD_CACHE_DIR}
+    fi
+
+    tar -xvzf ${DOWNLOAD_CACHE_DIR}/${DOWNLOAD_URL##*/} -C ${inner_tarball_dir}/ --strip-components 2
+
+    # Remove unused files
+    rm -rf ${inner_tarball_dir}/usr/lib
+
+    # Install files into PKG_DIR
+    cp -av SynoPackage/AppPackage/* ${inner_tarball_dir}
+
+    # Create package.tgz: $1=source_dir, $2=dest_dir
+    pkg_make_inner_tarball "${inner_tarball_dir}" "${PKG_DIR}"
+}
+
+#
+# The package defines some scripts and metadata to control the installation, un-installation, upgrading,
+# starting and stopping processes as well as how to communicate with Synology Package Center in DSM. 
+#
+create_spk(){
+    # Copy Package Center scripts to PKG_DIR
+    local scripts_dir=${PKG_DIR}/scripts
+    mkdir -p ${scripts_dir}
+    cp -av SynoPackage/scripts/* ${scripts_dir}
+
+    # Copy Package configuration
+    local conf_dir=${PKG_DIR}/conf
+    mkdir -p ${conf_dir}
+    cp -av SynoPackage/conf/* ${conf_dir}
+
+    # Copy package icon
+    cp -av SynoPackage/PACKAGE_ICON*.PNG ${PKG_DIR}
+
+    # Generate INFO file
+    SynoPackage/INFO.sh > INFO
+    cp INFO ${PKG_DIR}/INFO
+
+    # Create the final spk: pkg_make_spk <source path> <dest path> <spk file name>
+    mkdir -p /image/packages
+    pkg_make_spk ${PKG_DIR} "/image/packages" $(pkg_get_spk_family_name)
+}
+
+#
+# Start install
+#
+
+# Clean working directory
+rm -rf ${PKG_DIR}
+mkdir -p ${PKG_DIR}
+
+# Create download cache directory
+mkdir -p ${DOWNLOAD_CACHE_DIR}
+# Remove files older than 10 days from the cache
+find ${DOWNLOAD_CACHE_DIR} -type f -mtime +10 -exec rm -f {} \;
+
+# Build and create package
+create_package_tgz
+create_spk

@@ -1,0 +1,39 @@
+{
+	"defaults":{ 
+		"run-as": "package" 
+	}, 
+	"username": "InfluxDB", 
+	"groupname": "InfluxDB", 
+	"ctrl-script":[{ 
+			"action": "preinst", 
+			"run-as": "root"    
+		}, { 
+			"action": "postinst", 
+			"run-as": "root"    
+		}, { 
+			"action": "preuninst", 
+			"run-as": "root" 
+		}, { 
+			"action": "postuninst", 
+			"run-as": "root" 
+		}, { 
+			"action": "preupgrade",   
+			"run-as": "root" 
+		}, { 
+			"action": "postupgrade",   
+			"run-as": "root" 
+		}, { 
+			"action": "start", 
+			"run-as": "package" 
+		},{ 
+			"action": "stop", 
+			"run-as": "package" 
+		},{ 
+			"action": "status", 
+			"run-as": "package" 
+		}],
+    "executable": [{
+        "relpath": "usr/bin/ca_reload",
+        "run-as": "root"
+    }]  
+}

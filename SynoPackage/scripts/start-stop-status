@@ -1,0 +1,171 @@
+#!/bin/sh
+#
+# MIT License
+#
+# Copyright (c) 2018 Ingo Theiss <ingo.theiss@i-matrixx.de>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+### Variable definitions
+
+# Source common definitions
+. $(dirname $0)/common
+
+# InfluxDB daemon name
+INFLUXDB_DAEMON_NAME="influxd"
+# InfluxDB daemon
+INFLUXDB_DAEMON="${PACKAGE_TARGET_LOCATION}/usr/bin/${INFLUXDB_DAEMON_NAME}"
+# InfluxDB config directory
+INFLUXDB_CONFIG_DIR="${PACKAGE_TARGET_LOCATION}/etc/influxdb"
+# InfluxDB config file
+INFLUXDB_CONFIG_FILE="${INFLUXDB_CONFIG_DIR}/influxdb.conf"
+# InfluxDB logfile directory
+INFLUXDB_LOG_DIR="${PACKAGE_TARGET_LOCATION}/var/log/influxdb"
+# InfluxDB logfile
+INFLUXDB_LOG_FILE="${INFLUXDB_LOG_DIR}/influxd.log"
+# InfluxDB PID file
+PID_FILE="${PACKAGE_TARGET_LOCATION}/influxdb.pid"
+# Max open files
+OPEN_FILE_LIMIT=65536
+
+### Function definitions
+
+# Function to start InfluxDB server
+do_start()
+{
+	### Remove stale PID file
+	rm -f ${PID_FILE}
+
+	### Start InfluxDB
+   
+	# Bump the file limits, before launching the daemon
+	ulimit -n ${OPEN_FILE_LIMIT}
+
+	# Start InfluxDB server
+    ${INFLUXDB_DAEMON} -pidfile ${PID_FILE} -config ${INFLUXDB_CONFIG_FILE} >> ${INFLUXDB_LOG_FILE} 2>&1 &
+	sleep 3
+
+	# Check for process
+	if [ -f ${PID_FILE} ]
+	then
+		pid=$(<${PID_FILE})
+		ps -p ${pid} &>/dev/null || return 3
+	else
+		return 4
+	fi
+
+	return 0
+}
+
+# Function to stop InfluxDB server
+do_stop()
+{
+	if [ -f ${PID_FILE} ]
+	then
+		pid="$(<${PID_FILE})"
+	else
+		pid="$(pidof ${INFLUXDB_DAEMON_NAME})"
+	fi
+
+	# Check process pid and return if already stopped
+	ps -p ${pid} &>/dev/null || return 0
+
+	if [ $? -eq 0 ]
+	then
+		# Process still up, send SIGTERM and remove PIDFILE
+		kill -TERM ${pid} &>/dev/null && rm -f "${PID_FILE}" &>/dev/null
+
+		n=0
+		# Enter loop to ensure process is stopped
+		while true
+		do
+			# If process is stopped, return loop
+			ps -p ${pid} &>/dev/null || return 0
+
+			# Process still up after signal, sleep and wait
+			sleep 1
+			((n++))
+
+			# After 10 seconds, send SIGKILL
+			if [ ${n} -eq 30 ]
+			then
+				kill -KILL ${pid} &>/dev/null
+			elif [ ${n} -eq 60 ]
+			then
+				# After 20 seconds, error out
+				return 4
+			fi
+		done
+	fi
+
+	return 0
+}
+
+# Function to detect running status of InfluxDB
+get_status()
+{
+	if [ -f ${PID_FILE} ]
+	then
+		pid="$(cat ${PID_FILE})"
+		ps -p ${pid} &>/dev/null || return 3
+	else
+		pid="$(pidof ${INFLUXDB_DAEMON_NAME})"
+
+		if [ -z ${pid} ]
+		then
+			return 0
+		else
+			ps -p ${pid} &>/dev/null || return 4
+		fi
+	fi
+
+	return 0
+}
+
+### Main program
+
+# This script is used to start and stop the package and detect running status
+case $1 in
+    start)   
+        do_start
+        ;;
+    stop)
+        do_stop  
+        ;;
+    status)
+        get_status
+        ;;
+    killall)
+        ;;
+    restart)
+        ;;
+    log)
+        ;;
+esac
+
+# Return proper exit status for Synology DSM
+#
+#   0: package is running.
+#   1: program of package is dead and /var/run pid file exists.
+#   2: program of package is dead and /var/lock lock file exists
+#   3: package is not running
+#   4: package status is unknown
+#   150: package is broken and should be reinstalled. Please note, broken status (150) is only supported by DSM 4.2 and later.
+exit $?

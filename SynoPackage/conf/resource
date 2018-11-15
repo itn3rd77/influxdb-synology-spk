@@ -1,0 +1,10 @@
+{
+	"certificate-config": {
+		"services": [{
+			"display_name": "InfluxDB",
+			"display_name_i18n": "InfluxDB",
+			"service": "influxdb"
+		}],
+		"reloader-relpath": "usr/bin/ca_reload"
+	}
+}
