@@ -26,23 +26,23 @@
 ### Variable definitions
 
 # Source common definitions
-. /var/packages/Grafana/scripts/common
+. /var/packages/InfluxDB/scripts/common
 
 ### Main program
 
 case $1 in
-	grafana-server)
-        # Check Grafana status	
+	influxdb)
+        # Check InfluxDB status	
 		${PACKAGE_SCRIPTS_LOCATION}/start-stop-status status
 
-		# Restart Grafana if running
+		# Restart InfluxDB if running
 		if [ $? -eq 0 ]
 		then
 		    ${BIN_SYNOPKGCTL} stop ${PACKAGE_NAME} && ${BIN_SYNOPKGCTL} start ${PACKAGE_NAME}
 		fi
 		;;
 	*)
-		echo "Usage: $0 grafana-server" >&2
+		echo "Usage: $0 influxdb" >&2
 		exit 1
 		;;
 esac
