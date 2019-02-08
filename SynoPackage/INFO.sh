@@ -6,7 +6,7 @@ build_number="$1"
 
 package="InfluxDB"
 displayname="InfluxDB"
-version="1.7.0-0002"
+version="1.7.3-0001"
 firmware="6.0-7312"
 arch="x86_64"
 beta="no"

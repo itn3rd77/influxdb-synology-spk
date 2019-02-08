@@ -6,5 +6,8 @@
 			"service": "influxdb"
 		}],
 		"reloader-relpath": "usr/bin/ca_reload"
-	}
+	},
+    "syslog-config": {
+        "logrotate-relpath": "etc/logrotate.d/influxdb"
+    }
 }

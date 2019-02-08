@@ -31,7 +31,7 @@ PKG_DIR="/tmp/_spk.tmp"
 # Download cache directory
 DOWNLOAD_CACHE_DIR="/tmp/_cache.tmp"
 # Grafana download URL
-DOWNLOAD_URL="https://dl.influxdata.com/influxdb/releases/influxdb-1.7.0_linux_amd64.tar.gz"
+DOWNLOAD_URL="https://dl.influxdata.com/influxdb/releases/influxdb-1.7.3_linux_amd64.tar.gz"
 
 #
 # The package.tgz is a compressed file containing all the files required by the applications.
